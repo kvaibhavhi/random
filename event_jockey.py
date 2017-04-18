@@ -8,25 +8,22 @@ app = Flask(__name__)
 cluster = Cluster()
 cs = ClosestSearch()
 
-@app.route("/event/<latitude>/<longitude>/<budget>")
-def fetch_all_events(latitude, longitude, budget):
+@app.route("/event/<latitude>/<longitude>/<budget>/<category>")
+def fetch_all_events(latitude, longitude, budget, category):
   cluster.store_details(latitude, longitude, budget)
-  events = cs.get_nearby_events((latitude, longitude), 2.50)
-  return json.dumps(events)
-
-@app.route("/filt_event/<category>")
-def fetch_filtered_events(category):
   events = cluster.get_filtered_events(category)
   return json.dumps(events)
-'''
-@app.route("/rest/<latitude>/<longitude>")
-def fetch_restaurants(latitude,longitude):
-  restaurants = cs.get_nearby_restaurants((latitude, longitude), 2.50)
-  return json.dumps(restaurants)
-'''
-@app.route("/rest/<latitude>/<longitude>/<budget>")
-def fetch_restaurants(latitude, longitude, budget):
-  restaurants = cluster.main(latitude, longitude, budget)
+
+@app.route("/res_event/<cuisine>")
+def fetch_res_based_on_event(cuisine):
+  result = cluster.fetch_event_res_result(cuisine)
+  return json.dumps(result)
+
+@app.route("/rest/<latitude>/<longitude>/<budget>/<cuisine>")
+def fetch_all_restaurants(latitude,longitude,budget,cuisine):
+  cluster.store_details(latitude, longitude, budget)
+  restaurants = cluster.get_filtered_restaurants(cuisine)
+  result = cluster.fetch_res_result(restaurants)
   return json.dumps(restaurants)
 
 if __name__ == "__main__":

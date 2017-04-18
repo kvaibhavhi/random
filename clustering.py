@@ -22,6 +22,10 @@ class Cluster(object):
     events = self.cs.get_nearby_events(self._user_location, 2.50)
     return events
 
+  def fetch_restaurants(self):
+    events = self.cs.get_nearby_restaurants(self._user_location, 2.50)
+    return events
+
   def res_near_event(self, event):
     mid_lat,mid_lon = event['coord']
     restaurants = self.cs.get_nearby_restaurants((mid_lat,mid_lon), 2.50)
@@ -58,7 +62,9 @@ class Cluster(object):
       norm_score = int( 1/float(distance) * rating * (budget/float(price)))
     return norm_score
 
-  def get_filtered_res(self, cuisine, restaurants, res_id):
+  def get_filtered_res_for_event(self, cuisine, event):
+    restaurants = self.res_near_event(event)
+    res_id = self.get_res_id(restaurants)
     cnx = mysql.connector.connect(user='root',
                               password= '2411',
                               host='127.0.0.1',
@@ -102,23 +108,43 @@ class Cluster(object):
     cnx.close()
     return events
 
-  def main(self,latitude,longitude,budget):
-    cluster = Cluster()
-    cluster.store_details(latitude,longitude, budget)
-    events = cluster.fetch_events()
+  def get_filtered_restaurants(self,cuisine):
+    restaurants = self.fetch_restaurants()
+    res_id = self.get_res_id(restaurants)
+    cnx = mysql.connector.connect(user='root',
+                              password= '2411',
+                              host='127.0.0.1',
+                              database = DATABASE)
+    cur = cnx.cursor()
+    rest_id = []
+    query = "select res_id from hotels where cuisines like '%"+ cuisine +"%' and res_id in ( '" + str(res_id[0]) + "'"
+    for i in res_id:
+      query += ",'"+ str(i) + "'"
+    query += ");"
+    cur.execute(query)
+    rows = cur.fetchall()
+    for i in rows:
+      rest_id.append(i[0])
+    for id in restaurants.keys():
+      if int(id) not in rest_id:
+        del restaurants[id]
+    cnx.close()
+    
+    return restaurants
+
+  def fetch_event_res_result(self,cuisine):
+    events = self.fetch_events()
     i = 1
     return_data = {}
     for event in events.values():
       event_cost = float(event['cost'])
-      res_budget = cluster.get_user_budget()-event_cost
+      res_budget = self.get_user_budget()-event_cost
 
-      restaurants = cluster.res_near_event(event)
-      res_id = cluster.get_res_id(restaurants)
-      filtered_res = cluster.get_filtered_res('Continental', restaurants, res_id)
+      filtered_res = self.get_filtered_res_for_event(cuisine, event)
       for restaurant in filtered_res.values():
-         score = cluster.compute_score(restaurant, (12.9361480,77.6099350), res_budget)
+         score = self.compute_score(restaurant, event['coord'], res_budget)
          restaurant['score'] = score
-      top_three = cluster.get_top_three(restaurants)
+      top_three = self.get_top_three(filtered_res)
       for scored in top_three.values():
         event_res_map = {}
         event_res_map['event'] = event
@@ -126,6 +152,13 @@ class Cluster(object):
         return_data[str(i)] = event_res_map
         i += 1
     return return_data
+
+  def fetch_res_result(self, filtered_res):
+    for restaurant in filtered_res.values():
+      score = self.compute_score(restaurant, self._user_location, float(self.get_user_budget()))
+      restaurant['score'] = score
+    top_three = self.get_top_three(filtered_res)
+    return top_three
 
 if __name__ == "__main__":
   main()

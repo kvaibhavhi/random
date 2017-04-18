@@ -46,6 +46,10 @@ class ClosestSearch():
   def dis(self, (lat1, lon1), (lat2, lon2)):
     ''' Gives distance b/w 2 geospatial locations'''
     R = 6371
+    lat1 = float(lat1)
+    lat2 = float(lat2)
+    lon1 = float(lon1)
+    lon2 = float(lon2)
     dlon = math.radians(lon2 - lon1)
     dlat = math.radians(lat2 - lat1)
 

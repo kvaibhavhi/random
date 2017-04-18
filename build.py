@@ -63,6 +63,7 @@ class Build():
       location['locality'] = event[10]
       location['cost'] = event[14]
       location['category'] = event[9]
+      location['image'] = event[4]
       locations[str(id)] = location
     return locations
 
